@@ -1,5 +1,6 @@
+import EmailAuth from "../components/EmailAuth";
 import { createClient } from "@supabase/supabase-js";
-
+import GoogleLoginButton from "../components/GoogleLoginButton";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
@@ -25,7 +26,9 @@ export default async function Home() {
     return (
         <main>
             <h1>My Movie List</h1>
-
+             
+             <GoogleLoginButton />
+             <EmailAuth />
             <ul>
                 {movies?.map((movie) => (
                     <li key={movie.id}>
