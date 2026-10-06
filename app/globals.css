@@ -613,3 +613,284 @@ footer {
   color: #777783;
   font-size: 12px;
 }
+
+/* =========================
+   AI TAGLINE LAB
+   ========================= */
+
+.ai-lab {
+  margin-top: 110px;
+  padding-top: 20px;
+}
+
+.ai-lab-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.ai-lab-heading h2 {
+  margin: 8px 0 8px;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.05;
+  color: #f7f7fb;
+  letter-spacing: -1.5px;
+}
+
+.ai-lab-description {
+  margin: 0;
+  color: #9999aa;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.ai-badge {
+  flex-shrink: 0;
+  padding: 11px 16px;
+  border: 1px solid rgba(133, 133, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(133, 133, 255, 0.08);
+  color: #a9a8ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+}
+
+.ai-lab-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 26px;
+  background:
+          radial-gradient(
+                  circle at top right,
+                  rgba(126, 122, 255, 0.16),
+                  transparent 34%
+          ),
+          rgba(255, 255, 255, 0.035);
+}
+
+.ai-lab-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 34px;
+  right: 34px;
+  height: 1px;
+  background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(133, 133, 255, 0.55),
+          transparent
+  );
+}
+
+.ai-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.ai-field label {
+  color: #b8b8c7;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.ai-field select,
+.ai-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 15px;
+  outline: none;
+  background: rgba(8, 8, 14, 0.72);
+  color: #f5f5f8;
+  font-family: inherit;
+  font-size: 15px;
+  transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease,
+          background 0.2s ease;
+}
+
+.ai-field select {
+  height: 52px;
+  padding: 0 16px;
+  cursor: pointer;
+}
+
+.ai-field textarea {
+  min-height: 118px;
+  padding: 16px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.ai-field select:focus,
+.ai-field textarea:focus {
+  border-color: rgba(133, 133, 255, 0.7);
+  background: rgba(12, 12, 20, 0.9);
+  box-shadow: 0 0 0 4px rgba(133, 133, 255, 0.08);
+}
+
+.ai-field select option {
+  background: #111118;
+  color: #ffffff;
+}
+
+.generate-button {
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-radius: 15px;
+  background: linear-gradient(
+          135deg,
+          #7775ff 0%,
+          #9692ff 100%
+  );
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease,
+          opacity 0.2s ease;
+}
+
+.generate-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(119, 117, 255, 0.28);
+}
+
+.generate-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ai-error {
+  margin: 18px 0 0;
+  padding: 13px 15px;
+  border: 1px solid rgba(255, 100, 120, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 70, 90, 0.07);
+  color: #ff9baa;
+  font-size: 14px;
+}
+
+.generation-result {
+  margin-top: 28px;
+  padding: 28px;
+  border: 1px solid rgba(133, 133, 255, 0.22);
+  border-radius: 20px;
+  background:
+          linear-gradient(
+                  135deg,
+                  rgba(133, 133, 255, 0.09),
+                  rgba(255, 255, 255, 0.025)
+          );
+}
+
+.generation-label {
+  margin: 0 0 15px;
+  color: #9290ff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2.3px;
+}
+
+.generation-result blockquote {
+  margin: 0;
+  max-width: 900px;
+  color: #f5f4fa;
+  font-size: clamp(21px, 2.6vw, 31px);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.5px;
+}
+
+.generation-prompt {
+  margin: 18px 0 0;
+  color: #838394;
+  font-size: 13px;
+}
+
+.vote-area {
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vote-area > p:first-child {
+  margin: 0 0 14px;
+  color: #b5b5c2;
+  font-size: 13px;
+}
+
+.vote-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.vote-buttons button {
+  min-width: 130px;
+  padding: 11px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e7e7ef;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+          transform 0.2s ease,
+          background 0.2s ease,
+          border-color 0.2s ease;
+}
+
+.vote-buttons button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(133, 133, 255, 0.45);
+  background: rgba(133, 133, 255, 0.1);
+}
+
+.vote-buttons button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.vote-message {
+  margin: 15px 0 0;
+  color: #aaa8ff;
+  font-size: 13px;
+}
+
+@media (max-width: 700px) {
+  .ai-lab {
+    margin-top: 72px;
+  }
+
+  .ai-lab-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ai-lab-panel {
+    padding: 22px;
+  }
+
+  .vote-buttons {
+    flex-direction: column;
+  }
+
+  .vote-buttons button {
+    width: 100%;
+  }
+}

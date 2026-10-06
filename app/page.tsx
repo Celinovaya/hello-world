@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import GoogleLoginButton from "../components/GoogleLoginButton";
+import AITaglineLab from "../components/AITaglineLab";
 export const dynamic = "force-dynamic";
 
 type Movie = {
@@ -106,6 +107,7 @@ export default async function Home() {
                     ))}
                 </div>
             </section>
+            <AITaglineLab movies={movies ?? []} />
 
             <footer>
                 <span>Built with Next.js</span>
