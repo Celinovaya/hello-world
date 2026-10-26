@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import GoogleLoginButton from "../components/GoogleLoginButton";
 import AITaglineLab from "../components/AITaglineLab";
+import CommunityFavorites from "../components/CommunityFavorites";
 
 export const dynamic = "force-dynamic";
 
@@ -604,6 +605,8 @@ export default async function Home({ searchParams }: HomeProps) {
             <div id="ai-studio">
                 <AITaglineLab movies={movies} />
             </div>
+
+            <CommunityFavorites />
 
             <section className="movie-section">
                 <div className="section-header">

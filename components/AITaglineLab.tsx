@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Movie = {
     id: number;
@@ -15,6 +15,17 @@ type Generation = {
     generated_text: string;
     created_at: string;
 };
+
+type VoteStatus = "" | "success" | "error";
+
+type StoredSession = {
+    movieId: string;
+    prompt: string;
+    generation: Generation | null;
+    selectedVote: 1 | -1 | null;
+};
+
+const STORAGE_KEY = "ai-tagline-lab-session";
 
 const promptIdeas = [
     {
@@ -60,6 +71,9 @@ export default function AITaglineLab({
 
     const [voting, setVoting] = useState(false);
     const [voteMessage, setVoteMessage] = useState("");
+    const [voteStatus, setVoteStatus] =
+        useState<VoteStatus>("");
+
     const [selectedVote, setSelectedVote] =
         useState<1 | -1 | null>(null);
 
@@ -67,18 +81,106 @@ export default function AITaglineLab({
         (movie) => movie.id.toString() === movieId
     );
 
+    useEffect(() => {
+        try {
+            const saved = window.localStorage.getItem(
+                STORAGE_KEY
+            );
+
+            if (!saved) {
+                return;
+            }
+
+            const session =
+                JSON.parse(saved) as StoredSession;
+
+            const movieStillExists = movies.some(
+                (movie) =>
+                    movie.id.toString() === session.movieId
+            );
+
+            if (!movieStillExists) {
+                window.localStorage.removeItem(
+                    STORAGE_KEY
+                );
+                return;
+            }
+
+            setMovieId(session.movieId);
+
+            if (session.prompt) {
+                setPrompt(session.prompt);
+            }
+
+            if (session.generation) {
+                setGeneration(session.generation);
+            }
+
+            if (
+                session.selectedVote === 1 ||
+                session.selectedVote === -1
+            ) {
+                setSelectedVote(
+                    session.selectedVote
+                );
+
+                setVoteStatus("success");
+
+                setVoteMessage(
+                    session.selectedVote === 1
+                        ? "✓ Your upvote was restored after refresh."
+                        : "✓ Your downvote was restored after refresh."
+                );
+            }
+        } catch {
+            window.localStorage.removeItem(
+                STORAGE_KEY
+            );
+        }
+    }, [movies]);
+
+    function saveSession(
+        nextGeneration: Generation | null,
+        nextVote: 1 | -1 | null,
+        nextMovieId = movieId,
+        nextPrompt = prompt
+    ) {
+        const session: StoredSession = {
+            movieId: nextMovieId,
+            prompt: nextPrompt,
+            generation: nextGeneration,
+            selectedVote: nextVote,
+        };
+
+        window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(session)
+        );
+    }
+
+    function clearSavedSession() {
+        window.localStorage.removeItem(
+            STORAGE_KEY
+        );
+    }
+
     async function handleGenerate() {
         const movie = movies.find(
-            (item) => item.id.toString() === movieId
+            (item) =>
+                item.id.toString() === movieId
         );
 
         if (!movie || !movie.title) {
-            setError("Please choose a movie.");
+            setError(
+                "Please choose a movie."
+            );
             return;
         }
 
         if (!prompt.trim()) {
-            setError("Please enter a creative direction.");
+            setError(
+                "Please enter a creative direction."
+            );
             return;
         }
 
@@ -86,30 +188,49 @@ export default function AITaglineLab({
         setError("");
         setGeneration(null);
         setVoteMessage("");
+        setVoteStatus("");
         setSelectedVote(null);
 
         try {
-            const response = await fetch("/api/generate", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    movieId: movie.id,
-                    movieTitle: movie.title,
-                    prompt: prompt.trim(),
-                }),
-            });
+            const response = await fetch(
+                "/api/generate",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                    },
+                    body: JSON.stringify({
+                        movieId: movie.id,
+                        movieTitle: movie.title,
+                        prompt: prompt.trim(),
+                    }),
+                }
+            );
 
-            const data = await response.json();
+            const data =
+                await response.json();
 
             if (!response.ok) {
                 throw new Error(
-                    data.error || "Failed to generate tagline."
+                    data.error ||
+                    "Failed to generate tagline."
                 );
             }
 
-            setGeneration(data.generation);
+            const newGeneration =
+                data.generation as Generation;
+
+            setGeneration(
+                newGeneration
+            );
+
+            saveSession(
+                newGeneration,
+                null,
+                movieId,
+                prompt.trim()
+            );
         } catch (err) {
             setError(
                 err instanceof Error
@@ -121,42 +242,83 @@ export default function AITaglineLab({
         }
     }
 
-    async function handleVote(value: 1 | -1) {
+    async function handleVote(
+        value: 1 | -1
+    ) {
         if (!generation) {
             return;
         }
 
+        if (selectedVote === value) {
+            setVoteStatus("success");
+
+            setVoteMessage(
+                value === 1
+                    ? "✓ Your upvote is already saved. No duplicate vote was created."
+                    : "✓ Your downvote is already saved. No duplicate vote was created."
+            );
+
+            return;
+        }
+
+        const previousVote =
+            selectedVote;
+
         setVoting(true);
         setVoteMessage("");
+        setVoteStatus("");
 
         try {
-            const response = await fetch("/api/vote", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    generationId: generation.id,
-                    value,
-                }),
-            });
+            const response = await fetch(
+                "/api/vote",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                    },
+                    body: JSON.stringify({
+                        generationId:
+                        generation.id,
+                        value,
+                    }),
+                }
+            );
 
-            const data = await response.json();
+            const data =
+                await response.json();
 
             if (!response.ok) {
                 throw new Error(
-                    data.error || "Failed to submit vote."
+                    data.error ||
+                    "Failed to submit vote."
                 );
             }
 
             setSelectedVote(value);
+            setVoteStatus("success");
 
-            setVoteMessage(
-                value === 1
-                    ? "Upvoted! You can change your vote anytime."
-                    : "Feedback saved! You can change your vote anytime."
+            if (previousVote === null) {
+                setVoteMessage(
+                    value === 1
+                        ? "✓ Vote submitted — you upvoted this tagline."
+                        : "✓ Vote submitted — you downvoted this tagline."
+                );
+            } else {
+                setVoteMessage(
+                    value === 1
+                        ? "✓ Vote updated — your rating is now an upvote."
+                        : "✓ Vote updated — your rating is now a downvote."
+                );
+            }
+
+            saveSession(
+                generation,
+                value
             );
         } catch (err) {
+            setVoteStatus("error");
+
             setVoteMessage(
                 err instanceof Error
                     ? err.message
@@ -167,7 +329,9 @@ export default function AITaglineLab({
         }
     }
 
-    function applyPromptIdea(newPrompt: string) {
+    function applyPromptIdea(
+        newPrompt: string
+    ) {
         setPrompt(newPrompt);
         setError("");
     }
@@ -247,7 +411,9 @@ export default function AITaglineLab({
 
                 .studio-content {
                     display: grid;
-                    grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+                    grid-template-columns:
+                        minmax(0, 1.05fr)
+                        minmax(300px, 0.95fr);
                     gap: 28px;
                     padding: 34px 38px 38px;
                 }
@@ -296,9 +462,11 @@ export default function AITaglineLab({
 
                 .studio-select:focus,
                 .studio-textarea:focus {
-                    border-color: rgba(167,139,250,0.85);
+                    border-color:
+                        rgba(167,139,250,0.85);
                     box-shadow:
-                        0 0 0 3px rgba(139,92,246,0.12);
+                        0 0 0 3px
+                        rgba(139,92,246,0.12);
                 }
 
                 .selected-movie-note {
@@ -332,8 +500,10 @@ export default function AITaglineLab({
                     border: 1px solid rgba(255,255,255,0.1);
                     border-radius: 999px;
                     padding: 9px 13px;
-                    background: rgba(255,255,255,0.035);
-                    color: rgba(255,255,255,0.72);
+                    background:
+                        rgba(255,255,255,0.035);
+                    color:
+                        rgba(255,255,255,0.72);
                     font: inherit;
                     font-size: 0.82rem;
                     cursor: pointer;
@@ -346,8 +516,10 @@ export default function AITaglineLab({
 
                 .prompt-chip:hover {
                     transform: translateY(-1px);
-                    border-color: rgba(167,139,250,0.42);
-                    background: rgba(139,92,246,0.11);
+                    border-color:
+                        rgba(167,139,250,0.42);
+                    background:
+                        rgba(139,92,246,0.11);
                     color: white;
                 }
 
@@ -357,13 +529,18 @@ export default function AITaglineLab({
                     border: 0;
                     border-radius: 14px;
                     background:
-                        linear-gradient(135deg, #7c3aed, #a855f7);
+                        linear-gradient(
+                            135deg,
+                            #7c3aed,
+                            #a855f7
+                        );
                     color: white;
                     font-size: 0.95rem;
                     font-weight: 800;
                     cursor: pointer;
                     box-shadow:
-                        0 12px 28px rgba(124,58,237,0.22);
+                        0 12px 28px
+                        rgba(124,58,237,0.22);
                     transition:
                         transform 0.18s ease,
                         filter 0.18s ease;
@@ -382,9 +559,12 @@ export default function AITaglineLab({
                 .studio-error {
                     margin: 13px 0 0;
                     padding: 11px 13px;
-                    border: 1px solid rgba(248,113,113,0.22);
+                    border:
+                        1px solid
+                        rgba(248,113,113,0.22);
                     border-radius: 11px;
-                    background: rgba(248,113,113,0.07);
+                    background:
+                        rgba(248,113,113,0.07);
                     color: #fca5a5;
                     font-size: 0.85rem;
                     line-height: 1.5;
@@ -392,7 +572,9 @@ export default function AITaglineLab({
 
                 .studio-preview {
                     min-height: 100%;
-                    border: 1px solid rgba(255,255,255,0.08);
+                    border:
+                        1px solid
+                        rgba(255,255,255,0.08);
                     border-radius: 20px;
                     background:
                         linear-gradient(
@@ -420,9 +602,12 @@ export default function AITaglineLab({
                     align-items: center;
                     justify-content: center;
                     margin-bottom: 17px;
-                    border: 1px solid rgba(167,139,250,0.2);
+                    border:
+                        1px solid
+                        rgba(167,139,250,0.2);
                     border-radius: 18px;
-                    background: rgba(124,58,237,0.08);
+                    background:
+                        rgba(124,58,237,0.08);
                     font-size: 25px;
                 }
 
@@ -434,7 +619,8 @@ export default function AITaglineLab({
                 .preview-empty p {
                     max-width: 280px;
                     margin: 0;
-                    color: rgba(255,255,255,0.43);
+                    color:
+                        rgba(255,255,255,0.43);
                     line-height: 1.6;
                     font-size: 0.84rem;
                 }
@@ -450,11 +636,14 @@ export default function AITaglineLab({
                 .creation-movie {
                     display: flex;
                     align-items: center;
-                    justify-content: space-between;
+                    justify-content:
+                        space-between;
                     gap: 15px;
                     margin-bottom: 18px;
                     padding-bottom: 17px;
-                    border-bottom: 1px solid rgba(255,255,255,0.07);
+                    border-bottom:
+                        1px solid
+                        rgba(255,255,255,0.07);
                 }
 
                 .creation-movie-title {
@@ -466,7 +655,8 @@ export default function AITaglineLab({
                 .creation-genre {
                     display: inline-block;
                     margin-top: 5px;
-                    color: rgba(255,255,255,0.4);
+                    color:
+                        rgba(255,255,255,0.4);
                     font-size: 0.78rem;
                 }
 
@@ -474,7 +664,8 @@ export default function AITaglineLab({
                     flex-shrink: 0;
                     padding: 6px 9px;
                     border-radius: 999px;
-                    background: rgba(139,92,246,0.1);
+                    background:
+                        rgba(139,92,246,0.1);
                     color: #c4b5fd;
                     font-size: 0.68rem;
                     font-weight: 800;
@@ -483,8 +674,14 @@ export default function AITaglineLab({
                 .creation-quote {
                     margin: 0;
                     padding: 5px 0 22px;
-                    color: rgba(255,255,255,0.94);
-                    font-size: clamp(1.25rem, 2.3vw, 1.7rem);
+                    color:
+                        rgba(255,255,255,0.94);
+                    font-size:
+                        clamp(
+                            1.25rem,
+                            2.3vw,
+                            1.7rem
+                        );
                     font-weight: 650;
                     line-height: 1.45;
                     letter-spacing: -0.025em;
@@ -494,41 +691,51 @@ export default function AITaglineLab({
                     margin: 0 0 23px;
                     padding: 12px 13px;
                     border-radius: 11px;
-                    background: rgba(255,255,255,0.035);
-                    color: rgba(255,255,255,0.45);
+                    background:
+                        rgba(255,255,255,0.035);
+                    color:
+                        rgba(255,255,255,0.45);
                     font-size: 0.79rem;
                     line-height: 1.5;
                 }
 
                 .creation-direction strong {
-                    color: rgba(255,255,255,0.67);
+                    color:
+                        rgba(255,255,255,0.67);
                 }
 
                 .vote-divider {
                     height: 1px;
                     margin-bottom: 20px;
-                    background: rgba(255,255,255,0.07);
+                    background:
+                        rgba(255,255,255,0.07);
                 }
 
                 .vote-question {
                     margin: 0 0 12px;
-                    color: rgba(255,255,255,0.7);
+                    color:
+                        rgba(255,255,255,0.7);
                     font-size: 0.84rem;
                     font-weight: 700;
                 }
 
                 .studio-vote-buttons {
                     display: grid;
-                    grid-template-columns: 1fr 1fr;
+                    grid-template-columns:
+                        1fr 1fr;
                     gap: 10px;
                 }
 
                 .studio-vote-button {
                     min-height: 44px;
-                    border: 1px solid rgba(255,255,255,0.1);
+                    border:
+                        1px solid
+                        rgba(255,255,255,0.1);
                     border-radius: 11px;
-                    background: rgba(255,255,255,0.035);
-                    color: rgba(255,255,255,0.72);
+                    background:
+                        rgba(255,255,255,0.035);
+                    color:
+                        rgba(255,255,255,0.72);
                     font: inherit;
                     font-size: 0.83rem;
                     font-weight: 700;
@@ -540,19 +747,25 @@ export default function AITaglineLab({
                 }
 
                 .studio-vote-button:hover:not(:disabled) {
-                    transform: translateY(-1px);
-                    border-color: rgba(167,139,250,0.35);
+                    transform:
+                        translateY(-1px);
+                    border-color:
+                        rgba(167,139,250,0.35);
                 }
 
                 .studio-vote-button.active-up {
-                    border-color: rgba(74,222,128,0.4);
-                    background: rgba(74,222,128,0.1);
+                    border-color:
+                        rgba(74,222,128,0.4);
+                    background:
+                        rgba(74,222,128,0.1);
                     color: #86efac;
                 }
 
                 .studio-vote-button.active-down {
-                    border-color: rgba(248,113,113,0.4);
-                    background: rgba(248,113,113,0.09);
+                    border-color:
+                        rgba(248,113,113,0.4);
+                    background:
+                        rgba(248,113,113,0.09);
                     color: #fca5a5;
                 }
 
@@ -562,21 +775,54 @@ export default function AITaglineLab({
                 }
 
                 .studio-vote-message {
-                    margin: 12px 0 0;
-                    color: rgba(255,255,255,0.48);
-                    font-size: 0.78rem;
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 8px;
+                    margin: 14px 0 0;
+                    padding: 11px 13px;
+                    border-radius: 11px;
+                    font-size: 0.79rem;
+                    font-weight: 650;
+                    line-height: 1.5;
+                }
+
+                .studio-vote-message.success {
+                    border:
+                        1px solid
+                        rgba(74,222,128,0.22);
+                    background:
+                        rgba(74,222,128,0.07);
+                    color: #86efac;
+                }
+
+                .studio-vote-message.error {
+                    border:
+                        1px solid
+                        rgba(248,113,113,0.22);
+                    background:
+                        rgba(248,113,113,0.07);
+                    color: #fca5a5;
+                }
+
+                .vote-helper {
+                    margin: 10px 0 0;
+                    color:
+                        rgba(255,255,255,0.36);
+                    font-size: 0.72rem;
                     line-height: 1.5;
                 }
 
                 @media (max-width: 850px) {
                     .studio-top {
                         flex-direction: column;
-                        padding: 28px 24px 24px;
+                        padding:
+                            28px 24px 24px;
                     }
 
                     .studio-content {
                         grid-template-columns: 1fr;
-                        padding: 25px 24px 28px;
+                        padding:
+                            25px 24px 28px;
                     }
 
                     .studio-preview {
@@ -594,11 +840,13 @@ export default function AITaglineLab({
                     }
 
                     .studio-top {
-                        padding: 24px 18px 20px;
+                        padding:
+                            24px 18px 20px;
                     }
 
                     .studio-content {
-                        padding: 20px 18px 22px;
+                        padding:
+                            20px 18px 22px;
                     }
 
                     .studio-vote-buttons {
@@ -614,12 +862,15 @@ export default function AITaglineLab({
                             AI CREATIVE STUDIO
                         </p>
 
-                        <h2>Reimagine a Movie</h2>
+                        <h2>
+                            Reimagine a Movie
+                        </h2>
 
                         <p className="studio-description">
-                            Choose a movie, give AI a creative direction,
-                            and turn a familiar story into a completely new
-                            tagline.
+                            Choose a movie, give AI a
+                            creative direction, and turn
+                            a familiar story into a
+                            completely new tagline.
                         </p>
                     </div>
 
@@ -639,24 +890,57 @@ export default function AITaglineLab({
                                 id="movie"
                                 className="studio-select"
                                 value={movieId}
-                                onChange={(event) => {
-                                    setMovieId(event.target.value);
-                                    setGeneration(null);
-                                    setVoteMessage("");
-                                    setSelectedVote(null);
+                                onChange={(
+                                    event
+                                ) => {
+                                    const nextMovieId =
+                                        event.target
+                                            .value;
+
+                                    setMovieId(
+                                        nextMovieId
+                                    );
+
+                                    setGeneration(
+                                        null
+                                    );
+
+                                    setVoteMessage(
+                                        ""
+                                    );
+
+                                    setVoteStatus(
+                                        ""
+                                    );
+
+                                    setSelectedVote(
+                                        null
+                                    );
+
+                                    setError("");
+
+                                    clearSavedSession();
                                 }}
                             >
-                                {movies.map((movie) => (
-                                    <option
-                                        key={movie.id}
-                                        value={movie.id}
-                                    >
-                                        {movie.title}
-                                        {movie.genre
-                                            ? ` — ${movie.genre}`
-                                            : ""}
-                                    </option>
-                                ))}
+                                {movies.map(
+                                    (movie) => (
+                                        <option
+                                            key={
+                                                movie.id
+                                            }
+                                            value={
+                                                movie.id
+                                            }
+                                        >
+                                            {
+                                                movie.title
+                                            }
+                                            {movie.genre
+                                                ? ` — ${movie.genre}`
+                                                : ""}
+                                        </option>
+                                    )
+                                )}
                             </select>
 
                             {selectedMovie && (
@@ -665,7 +949,9 @@ export default function AITaglineLab({
                                     <span>
                                         Creating for{" "}
                                         <strong>
-                                            {selectedMovie.title}
+                                            {
+                                                selectedMovie.title
+                                            }
                                         </strong>
                                         {selectedMovie.genre
                                             ? ` · ${selectedMovie.genre}`
@@ -677,15 +963,21 @@ export default function AITaglineLab({
 
                         <div className="studio-field">
                             <label htmlFor="prompt">
-                                2. Give AI a creative direction
+                                2. Give AI a creative
+                                direction
                             </label>
 
                             <textarea
                                 id="prompt"
                                 className="studio-textarea"
                                 value={prompt}
-                                onChange={(event) =>
-                                    setPrompt(event.target.value)
+                                onChange={(
+                                    event
+                                ) =>
+                                    setPrompt(
+                                        event.target
+                                            .value
+                                    )
                                 }
                                 placeholder="Example: Make it mysterious and cinematic."
                                 rows={4}
@@ -693,28 +985,42 @@ export default function AITaglineLab({
                         </div>
 
                         <p className="idea-label">
-                            Need inspiration? Try a style:
+                            Need inspiration? Try a
+                            style:
                         </p>
 
                         <div className="prompt-ideas">
-                            {promptIdeas.map((idea) => (
-                                <button
-                                    key={idea.label}
-                                    type="button"
-                                    className="prompt-chip"
-                                    onClick={() =>
-                                        applyPromptIdea(idea.prompt)
-                                    }
-                                >
-                                    {idea.icon} {idea.label}
-                                </button>
-                            ))}
+                            {promptIdeas.map(
+                                (idea) => (
+                                    <button
+                                        key={
+                                            idea.label
+                                        }
+                                        type="button"
+                                        className="prompt-chip"
+                                        onClick={() =>
+                                            applyPromptIdea(
+                                                idea.prompt
+                                            )
+                                        }
+                                    >
+                                        {
+                                            idea.icon
+                                        }{" "}
+                                        {
+                                            idea.label
+                                        }
+                                    </button>
+                                )
+                            )}
                         </div>
 
                         <button
                             type="button"
                             className="studio-generate-button"
-                            onClick={handleGenerate}
+                            onClick={
+                                handleGenerate
+                            }
                             disabled={loading}
                         >
                             {loading
@@ -736,11 +1042,16 @@ export default function AITaglineLab({
                                     ✦
                                 </div>
 
-                                <h3>Your AI creation will appear here</h3>
+                                <h3>
+                                    Your AI creation
+                                    will appear here
+                                </h3>
 
                                 <p>
-                                    Choose a movie, pick a creative style,
-                                    and generate an original tagline.
+                                    Choose a movie,
+                                    pick a creative
+                                    style, and generate
+                                    an original tagline.
                                 </p>
                             </div>
                         ) : (
@@ -758,7 +1069,9 @@ export default function AITaglineLab({
 
                                         {selectedMovie?.genre && (
                                             <span className="creation-genre">
-                                                {selectedMovie.genre}
+                                                {
+                                                    selectedMovie.genre
+                                                }
                                             </span>
                                         )}
                                     </div>
@@ -769,18 +1082,28 @@ export default function AITaglineLab({
                                 </div>
 
                                 <blockquote className="creation-quote">
-                                    “{generation.generated_text}”
+                                    “
+                                    {
+                                        generation.generated_text
+                                    }
+                                    ”
                                 </blockquote>
 
                                 <p className="creation-direction">
-                                    <strong>Creative direction:</strong>{" "}
-                                    {generation.prompt}
+                                    <strong>
+                                        Creative
+                                        direction:
+                                    </strong>{" "}
+                                    {
+                                        generation.prompt
+                                    }
                                 </p>
 
                                 <div className="vote-divider" />
 
                                 <p className="vote-question">
-                                    Does this tagline deserve the
+                                    Does this tagline
+                                    deserve the
                                     spotlight?
                                 </p>
 
@@ -788,17 +1111,23 @@ export default function AITaglineLab({
                                     <button
                                         type="button"
                                         className={`studio-vote-button ${
-                                            selectedVote === 1
+                                            selectedVote ===
+                                            1
                                                 ? "active-up"
                                                 : ""
                                         }`}
                                         onClick={() =>
-                                            handleVote(1)
+                                            handleVote(
+                                                1
+                                            )
                                         }
-                                        disabled={voting}
+                                        disabled={
+                                            voting
+                                        }
                                     >
                                         👍{" "}
-                                        {selectedVote === 1
+                                        {selectedVote ===
+                                        1
                                             ? "Upvoted"
                                             : "Upvote"}
                                     </button>
@@ -806,27 +1135,53 @@ export default function AITaglineLab({
                                     <button
                                         type="button"
                                         className={`studio-vote-button ${
-                                            selectedVote === -1
+                                            selectedVote ===
+                                            -1
                                                 ? "active-down"
                                                 : ""
                                         }`}
                                         onClick={() =>
-                                            handleVote(-1)
+                                            handleVote(
+                                                -1
+                                            )
                                         }
-                                        disabled={voting}
+                                        disabled={
+                                            voting
+                                        }
                                     >
                                         👎{" "}
-                                        {selectedVote === -1
+                                        {selectedVote ===
+                                        -1
                                             ? "Downvoted"
                                             : "Downvote"}
                                     </button>
                                 </div>
 
                                 {voteMessage && (
-                                    <p className="studio-vote-message">
-                                        {voteMessage}
-                                    </p>
+                                    <div
+                                        className={`studio-vote-message ${
+                                            voteStatus ===
+                                            "error"
+                                                ? "error"
+                                                : "success"
+                                        }`}
+                                    >
+                                        <span>
+                                            {
+                                                voteMessage
+                                            }
+                                        </span>
+                                    </div>
                                 )}
+
+                                <p className="vote-helper">
+                                    Your rating is
+                                    saved. You can
+                                    switch between
+                                    upvote and downvote
+                                    without creating a
+                                    duplicate vote.
+                                </p>
                             </div>
                         )}
                     </div>
